@@ -67,7 +67,8 @@ $dlls = @(
     "UnityEngine.CoreModule.dll",
     "UnityEngine.InputLegacyModule.dll",
     "UnityEngine.TextRenderingModule.dll",
-    "UnityEngine.LocalizationModule.dll"
+    "UnityEngine.LocalizationModule.dll",
+    "com.rlabrecque.steamworks.net.dll"
 )
 
 Write-Host "`nCopiando DLLs desde: $GamePath" -ForegroundColor Yellow

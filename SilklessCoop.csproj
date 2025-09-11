@@ -24,28 +24,32 @@
 
 	<ItemGroup>
 		<Reference Include="TeamCherry.TK2D">
-			<HintPath>../../../Hollow Knight Silksong_Data/Managed/TeamCherry.TK2D.dll</HintPath>
+			<HintPath>GameLibs/TeamCherry.TK2D.dll</HintPath>
 		</Reference>
 
 		<Reference Include="TeamCherry.Localization">
-			<HintPath>../../../Hollow Knight Silksong_Data/Managed/TeamCherry.Localization.dll</HintPath>
+			<HintPath>GameLibs/TeamCherry.Localization.dll</HintPath>
 		</Reference>
 
 		<Reference Include="Assembly-CSharp">
-			<HintPath>../../../Hollow Knight Silksong_Data/Managed/Assembly-CSharp.dll</HintPath>
+			<HintPath>GameLibs/Assembly-CSharp.dll</HintPath>
 		</Reference>
 		
 		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>../../../Hollow Knight Silksong_Data/Managed/UnityEngine.CoreModule.dll</HintPath>
+			<HintPath>GameLibs/UnityEngine.CoreModule.dll</HintPath>
 		</Reference>
 
 		<Reference Include="UnityEngine.UI">
-			<HintPath>../../../Hollow Knight Silksong_Data/Managed/UnityEngine.UI.dll</HintPath>
+			<HintPath>GameLibs/UnityEngine.UI.dll</HintPath>
 		</Reference>
 
 		<Reference Include="com.rlabrecque.steamworks.net">
-			<HintPath>../../../Hollow Knight Silksong_Data/Managed/com.rlabrecque.steamworks.net.dll</HintPath>
+			<HintPath>GameLibs/com.rlabrecque.steamworks.net.dll</HintPath>
 		</Reference>
+
+        <Reference Include="TeamCherry.SharedUtils">
+            <HintPath>GameLibs/TeamCherry.SharedUtils.dll</HintPath>
+        </Reference>
 	</ItemGroup>
   
     <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">

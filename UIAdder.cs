@@ -49,7 +49,7 @@ namespace SilklessCoop
                 _mainMenuButton = Instantiate(_oldButton);
                 _mainMenuButton.transform.SetParent(_mainMenuContainer.transform);
                 _mainMenuButton.transform.localScale = Vector3.one;
-                _mainMenuButton.SetName("MultiplayerButton");
+                _mainMenuButton.name = "MultiplayerButton";
                 _mainMenuText = _mainMenuButton.transform.GetChild(0).gameObject.GetComponent<UnityEngine.UI.Text>();
 
                 EventTrigger et = _mainMenuButton.GetComponent<EventTrigger>();

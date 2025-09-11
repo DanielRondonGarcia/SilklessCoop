@@ -196,7 +196,7 @@ namespace SilklessCoop
                         if (Config.PrintDebugOutput) Logger.LogInfo($"Creating new player object for player {id}...");
 
                         GameObject newObject = new GameObject();
-                        newObject.SetName("SilklessCooperator");
+                        newObject.name = "SilklessCooperator";
                         newObject.transform.position = new Vector3(posX, posY, posZ + 0.001f);
                         newObject.transform.localScale = new Vector3(scaleX, 1, 1);
 
@@ -230,7 +230,7 @@ namespace SilklessCoop
                             if (Config.PrintDebugOutput) Logger.LogInfo($"Creating new compass for player {id}...");
 
                             GameObject newObject = Instantiate(_compass, _map.transform);
-                            newObject.SetName("SilklessCompass");
+                            newObject.name = "SilklessCompass";
                             newObject.transform.localPosition = new Vector3(compassX, compassY, _compass.transform.localPosition.z + 0.001f);
                             tk2dSprite newSprite = newObject.GetComponent<tk2dSprite>();
                             newSprite.color = new Color(1, 1, 1, Config.ActiveCompassOpacity);
@@ -262,7 +262,7 @@ namespace SilklessCoop
                     if (Config.PrintDebugOutput) Logger.LogInfo($"Creating player count pin {_countPins.Count + 1}...");
 
                     GameObject newPin = Instantiate(_compass, _map.transform);
-                    newPin.SetName("SilklessPlayerCountPin");
+                    newPin.name = "SilklessPlayerCountPin";
                     _countPins.Add(newPin);
 
                     if (Config.PrintDebugOutput) Logger.LogInfo($"Successfully created player count pin {_countPins.Count}.");
