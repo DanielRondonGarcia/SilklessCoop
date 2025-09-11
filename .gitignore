@@ -2,6 +2,11 @@
 bin
 obj
 
-# Game assemblies (no subir al repositorio)
-GameLibs/*.dll
-*.dll
+# Build outputs
+bin/
+obj/
+
+# Note: GameLibs/*.dll are now included for GitHub Actions compilation
+# Only exclude DLLs in other locations
+/bin/*.dll
+/obj/*.dll

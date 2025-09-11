@@ -34,32 +34,6 @@ jobs:
         Invoke-WebRequest -Uri $bepInExUrl -OutFile "BepInEx.zip"
         Expand-Archive -Path "BepInEx.zip" -DestinationPath "BepInEx" -Force
         
-    - name: Create mock game assemblies for build
-      run: |
-        # Create minimal mock DLLs for compilation
-        $mockDlls = @(
-            "Assembly-CSharp.dll",
-            "TeamCherry.TK2D.dll", 
-            "TeamCherry.Localization.dll",
-            "TeamCherry.BuildBot.dll",
-            "TeamCherry.Cinematics.dll",
-            "TeamCherry.NestedFadeGroup.dll",
-            "TeamCherry.SharedUtils.dll",
-            "TeamCherry.Splines.dll",
-            "UnityEngine.dll",
-            "UnityEngine.UI.dll",
-            "UnityEngine.CoreModule.dll",
-            "UnityEngine.InputLegacyModule.dll",
-            "UnityEngine.TextRenderingModule.dll",
-            "UnityEngine.LocalizationModule.dll",
-            "com.rlabrecque.steamworks.net.dll"
-        )
-        
-        foreach ($dll in $mockDlls) {
-            # Create empty DLL files for compilation
-            New-Item -Path "GameLibs\$dll" -ItemType File -Force
-        }
-        
     - name: Restore dependencies
       run: dotnet restore
       
