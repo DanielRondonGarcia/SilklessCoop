@@ -1,4 +1,4 @@
-﻿using BepInEx.Logging;
+using BepInEx.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,6 +32,26 @@ namespace SilklessCoop
         private Dictionary<string, GameObject> _playerObjects = new Dictionary<string, GameObject>();
         private Dictionary<string, tk2dSprite> _playerSprites = new Dictionary<string, tk2dSprite>();
         private Dictionary<string, SimpleInterpolator> _playerInterpolators = new Dictionary<string, SimpleInterpolator>();
+        
+        // player color pins
+        private Dictionary<string, GameObject> _playerColorPins = new Dictionary<string, GameObject>();
+        private Dictionary<string, Color> _playerColors = new Dictionary<string, Color>();
+        private List<Color> _availableColors = new List<Color>
+        {
+            new Color(1.0f, 0.2f, 0.2f, 0.9f), // Rojo
+            new Color(0.2f, 0.8f, 0.2f, 0.9f), // Verde
+            new Color(0.2f, 0.4f, 1.0f, 0.9f), // Azul
+            new Color(1.0f, 0.8f, 0.2f, 0.9f), // Amarillo
+            new Color(1.0f, 0.4f, 0.8f, 0.9f), // Rosa
+            new Color(0.6f, 0.2f, 1.0f, 0.9f), // Púrpura
+            new Color(0.2f, 0.8f, 0.8f, 0.9f), // Cian
+            new Color(1.0f, 0.6f, 0.2f, 0.9f)  // Naranja
+        };
+        private int _nextColorIndex = 0;
+        
+        // pin de color para jugador local (solo para debug)
+        private GameObject _localPlayerColorPin = null;
+        private Color _localPlayerColor = new Color(1.0f, 1.0f, 1.0f, 0.9f); // Blanco para el jugador local
 
         // player count
         private GameObject _pauseMenu = null;
@@ -88,6 +108,27 @@ namespace SilklessCoop
                 _setup = true;
 
                 Logger.LogInfo("GameObject setup complete.");
+            }
+            
+            // Manejar pin de color del jugador local cuando PrintDebugOutput está activado
+            if (Config.PrintDebugOutput)
+            {
+                if (_localPlayerColorPin == null)
+                {
+                    CreateLocalPlayerColorPin();
+                }
+                else
+                {
+                    UpdateLocalPlayerColorPin();
+                }
+            }
+            else
+            {
+                if (_localPlayerColorPin != null)
+                {
+                    Destroy(_localPlayerColorPin);
+                    _localPlayerColorPin = null;
+                }
             }
         }
 
@@ -173,6 +214,19 @@ namespace SilklessCoop
                     _playerCompasses.Add(id, null);
                     if (!_playerCompassSprites.ContainsKey(id)) _playerCompassSprites.Add(id, null);
                 }
+                
+                if (!_playerColorPins.ContainsKey(id))
+                {
+                    _playerColorPins.Add(id, null);
+                }
+                
+                // Asignar color único al jugador si no tiene uno
+                if (!_playerColors.ContainsKey(id))
+                {
+                    Color playerColor = GetNextPlayerColor();
+                    _playerColors.Add(id, playerColor);
+                    if (Config.PrintDebugOutput) Logger.LogInfo($"Assigned color {playerColor} to player {id}");
+                }
 
                 if (!sameScene)
                 {
@@ -180,6 +234,11 @@ namespace SilklessCoop
                     if (_playerObjects.ContainsKey(id))
                         if (_playerObjects[id] != null)
                             Destroy(_playerObjects[id]);
+                    
+                    // Limpiar pin de color también
+                    if (_playerColorPins.ContainsKey(id))
+                        if (_playerColorPins[id] != null)
+                            Destroy(_playerColorPins[id]);
                 } else
                 {
                     if (_playerObjects[id] != null)
@@ -189,6 +248,13 @@ namespace SilklessCoop
                         _playerObjects[id].transform.localScale = new Vector3(scaleX, 1, 1);
                         _playerSprites[id].spriteId = spriteId;
                         _playerInterpolators[id].velocity = new Vector3(vX, vY, 0);
+                        
+                        // Actualizar posición del pin de color si está habilitado
+                        if (Config.ShowPlayerColorPins)
+                        {
+                            if (Config.PrintDebugOutput) Logger.LogInfo($"Updating color pin position for player {id}");
+                            UpdatePlayerColorPin(id, _playerObjects[id]);
+                        }
                     }
                     else
                     {
@@ -209,6 +275,17 @@ namespace SilklessCoop
                         _playerObjects[id] = newObject;
                         _playerSprites[id] = newSprite;
                         _playerInterpolators[id] = newInterpolator;
+                        
+                        // Crear pin de color para el jugador si está habilitado
+                        if (Config.ShowPlayerColorPins)
+                        {
+                            if (Config.PrintDebugOutput) Logger.LogInfo($"ShowPlayerColorPins is enabled, creating color pin for player {id}");
+                            CreatePlayerColorPin(id, newObject);
+                        }
+                        else
+                        {
+                            if (Config.PrintDebugOutput) Logger.LogInfo($"ShowPlayerColorPins is disabled, skipping color pin creation for player {id}");
+                        }
 
                         if (Config.PrintDebugOutput) Logger.LogInfo($"Successfully created new player object for player {id}.");
                     }
@@ -287,6 +364,126 @@ namespace SilklessCoop
             }
         }
 
+        private Color GetNextPlayerColor()
+        {
+            Color color = _availableColors[_nextColorIndex % _availableColors.Count];
+            _nextColorIndex++;
+            return color;
+        }
+        
+        private void CreatePlayerColorPin(string playerId, GameObject playerObject)
+        {
+            if (_playerColorPins[playerId] != null) return;
+            
+            // Crear el pin de color en el mundo, no como hijo del jugador
+            GameObject colorPin = new GameObject($"PlayerColorPin_{playerId}");
+            
+            // Agregar componente de imagen
+            SpriteRenderer pinRenderer = colorPin.AddComponent<SpriteRenderer>();
+            
+            // Crear sprite circular para el pin
+            Texture2D pinTexture = CreateCircularPinTexture(_playerColors[playerId]);
+            Sprite pinSprite = Sprite.Create(pinTexture, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f));
+            pinRenderer.sprite = pinSprite;
+            pinRenderer.sortingOrder = 1000; // Asegurar que esté encima de otros elementos
+            
+            // Posicionar el pin encima del jugador (posición absoluta)
+            Vector3 playerPos = playerObject.transform.position;
+            colorPin.transform.position = new Vector3(playerPos.x, playerPos.y + 2.0f, playerPos.z - 0.1f);
+            colorPin.transform.localScale = new Vector3(1.2f, 1.2f, 1f); // Tamaño consistente con pin local
+            
+            if (Config.PrintDebugOutput) Logger.LogInfo($"Pin sprite created with texture size 32x32, color {_playerColors[playerId]}, position {colorPin.transform.position}");
+            
+            _playerColorPins[playerId] = colorPin;
+            
+            if (Config.PrintDebugOutput) Logger.LogInfo($"Created color pin for player {playerId} at position {colorPin.transform.position}");
+        }
+        
+        private void UpdatePlayerColorPin(string playerId, GameObject playerObject)
+        {
+            if (_playerColorPins[playerId] == null) return;
+            
+            // Actualizar la posición del pin para que siga al jugador
+            Vector3 playerPos = playerObject.transform.position;
+            _playerColorPins[playerId].transform.position = new Vector3(playerPos.x, playerPos.y + 2.0f, playerPos.z - 0.1f);
+            _playerColorPins[playerId].SetActive(true);
+        }
+        
+        private Texture2D CreateCircularPinTexture(Color pinColor)
+        {
+            int size = 32;
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Color[] pixels = new Color[size * size];
+            
+            Vector2 center = new Vector2(size / 2f, size / 2f);
+            float radius = size / 2f - 1;
+            
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), center);
+                    Color pixelColor = Color.clear;
+                    
+                    if (distance <= radius)
+                    {
+                        if (distance <= radius - 1)
+                        {
+                            // Interior del círculo con el color del jugador
+                            pixelColor = pinColor;
+                        }
+                        else
+                        {
+                            // Borde del círculo en color más oscuro
+                            pixelColor = new Color(pinColor.r * 0.7f, pinColor.g * 0.7f, pinColor.b * 0.7f, pinColor.a);
+                        }
+                    }
+                    
+                    pixels[y * size + x] = pixelColor;
+                }
+            }
+            
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
+        }
+
+        private void CreateLocalPlayerColorPin()
+        {
+            if (_localPlayerColorPin != null) return;
+            
+            // Crear el pin de color para el jugador local
+            GameObject colorPin = new GameObject("LocalPlayerColorPin");
+            
+            // Agregar componente de imagen
+            SpriteRenderer pinRenderer = colorPin.AddComponent<SpriteRenderer>();
+            
+            // Crear sprite circular para el pin
+            Texture2D pinTexture = CreateCircularPinTexture(_localPlayerColor);
+            Sprite pinSprite = Sprite.Create(pinTexture, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f));
+            pinRenderer.sprite = pinSprite;
+            pinRenderer.sortingOrder = 1000; // Asegurar que esté encima de otros elementos
+            
+            // Posicionar el pin encima del jugador local
+            Vector3 playerPos = _hornetObject.transform.position;
+            colorPin.transform.position = new Vector3(playerPos.x, playerPos.y + 2.0f, playerPos.z - 0.1f);
+            colorPin.transform.localScale = new Vector3(1.2f, 1.2f, 1f); // Tamaño consistente con otros pins
+            
+            _localPlayerColorPin = colorPin;
+            
+            if (Config.PrintDebugOutput) Logger.LogInfo($"Created local player color pin at position {colorPin.transform.position}");
+        }
+        
+        private void UpdateLocalPlayerColorPin()
+        {
+            if (_localPlayerColorPin == null) return;
+            
+            // Actualizar la posición del pin para que siga al jugador local
+            Vector3 playerPos = _hornetObject.transform.position;
+            _localPlayerColorPin.transform.position = new Vector3(playerPos.x, playerPos.y + 2.0f, playerPos.z - 0.1f);
+            _localPlayerColorPin.SetActive(true);
+        }
+
         public void Reset()
         {
             foreach (GameObject g in _playerObjects.Values)
@@ -294,6 +491,19 @@ namespace SilklessCoop
             _playerObjects.Clear();
             _playerSprites.Clear();
             _playerInterpolators.Clear();
+            
+            foreach (GameObject g in _playerColorPins.Values)
+                if (g != null) Destroy(g);
+            _playerColorPins.Clear();
+            _playerColors.Clear();
+            _nextColorIndex = 0;
+            
+            // Limpiar pin del jugador local también
+            if (_localPlayerColorPin != null)
+            {
+                Destroy(_localPlayerColorPin);
+                _localPlayerColorPin = null;
+            }
 
             foreach (GameObject g in _countPins)
                 if (g != null) Destroy(g);

@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using UnityEngine;
 
 namespace SilklessCoop;
@@ -15,7 +15,7 @@ public class Plugin : BaseUnityPlugin
         config.TickRate = Config.Bind<int>("General", "Tick Rate", 20, "Messages per second sent to the server.").Value;
         config.SyncCompasses = Config.Bind<bool>("General", "Sync Compasses", true, "Enables seeing other players compasses on your map.").Value;
 
-        config.PrintDebugOutput = Config.Bind<bool>("General", "Print Debug Output", true, "Enables advanced logging to help find bugs.").Value;
+        config.PrintDebugOutput = Config.Bind<bool>("General", "Print Debug Output", false, "Enables advanced logging to help find bugs.").Value;
 
         config.EchoServerIP = Config.Bind<string>("Standalone", "Server IP Address", "127.0.0.1", "IP Address of the standalone server.").Value;
         config.EchoServerPort = Config.Bind<int>("Standalone", "Server Port", 45565, "Port of the standalone server.").Value;
@@ -23,6 +23,7 @@ public class Plugin : BaseUnityPlugin
         config.PlayerOpacity = Config.Bind<float>("Visuals", "Player Opacity", 0.7f, "Opacity of other players (0.0f = invisible, 1.0f = as opaque as yourself).").Value;
         config.ActiveCompassOpacity = Config.Bind<float>("Visuals", "Active Compass Opacity", 0.7f, "Opacity of other players' compasses while they have their map open.").Value;
         config.InactiveCompassOpacity = Config.Bind<float>("Visuals", "Inactive Compass Opacity", 0.35f, "Opacity of other players' compasses while they have their map closed.").Value;
+        config.ShowPlayerColorPins = Config.Bind<bool>("Visuals", "Show Player Color Pins", true, "Shows colored pins above each player to help identify them.").Value;
 
         // set up mod
         Logger.LogInfo($"Loading {MyPluginInfo.PLUGIN_GUID}...");

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace SilklessCoop
 {
@@ -22,5 +22,7 @@ namespace SilklessCoop
         public float PlayerOpacity;
         public float ActiveCompassOpacity;
         public float InactiveCompassOpacity;
+        
+        public bool ShowPlayerColorPins;
     };
 }
