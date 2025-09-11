@@ -1,3 +1,7 @@
 .vs
 bin
 obj
+
+# Game assemblies (no subir al repositorio)
+GameLibs/*.dll
+*.dll
