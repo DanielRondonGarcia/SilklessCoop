@@ -23,7 +23,10 @@ jobs:
         dotnet-version: '6.0.x'
         
     - name: Create GameLibs directory
-      run: mkdir -p GameLibs
+      run: |
+        if (!(Test-Path "GameLibs")) {
+          New-Item -Path "GameLibs" -ItemType Directory -Force
+        }
       
     - name: Download BepInEx
       run: |
