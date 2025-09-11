@@ -1,0 +1,127 @@
+name: Build and Package SilklessCoop
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '6.0.x'
+        
+    - name: Create GameLibs directory
+      run: mkdir -p GameLibs
+      
+    - name: Download BepInEx
+      run: |
+        $bepInExUrl = "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.3/BepInEx_win_x64_5.4.23.3.zip"
+        Invoke-WebRequest -Uri $bepInExUrl -OutFile "BepInEx.zip"
+        Expand-Archive -Path "BepInEx.zip" -DestinationPath "BepInEx" -Force
+        
+    - name: Create mock game assemblies for build
+      run: |
+        # Create minimal mock DLLs for compilation
+        $mockDlls = @(
+            "Assembly-CSharp.dll",
+            "TeamCherry.TK2D.dll", 
+            "TeamCherry.Localization.dll",
+            "TeamCherry.BuildBot.dll",
+            "TeamCherry.Cinematics.dll",
+            "TeamCherry.NestedFadeGroup.dll",
+            "TeamCherry.SharedUtils.dll",
+            "TeamCherry.Splines.dll",
+            "UnityEngine.dll",
+            "UnityEngine.UI.dll",
+            "UnityEngine.CoreModule.dll",
+            "UnityEngine.InputLegacyModule.dll",
+            "UnityEngine.TextRenderingModule.dll",
+            "UnityEngine.LocalizationModule.dll",
+            "com.rlabrecque.steamworks.net.dll"
+        )
+        
+        foreach ($dll in $mockDlls) {
+            # Create empty DLL files for compilation
+            New-Item -Path "GameLibs\$dll" -ItemType File -Force
+        }
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build project
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Create release package structure
+      run: |
+        # Create the final package structure
+        New-Item -Path "SilklessCoopPackage" -ItemType Directory -Force
+        
+        # Copy BepInEx files
+        Copy-Item -Path "BepInEx\*" -Destination "SilklessCoopPackage\" -Recurse -Force
+        
+        # Create plugins directory if it doesn't exist
+        New-Item -Path "SilklessCoopPackage\BepInEx\plugins" -ItemType Directory -Force
+        
+        # Copy the compiled mod DLL
+        Copy-Item -Path "bin\Release\netstandard2.1\SilklessCoop.dll" -Destination "SilklessCoopPackage\BepInEx\plugins\" -Force
+        
+        # Create installation instructions
+        @"
+        # SilklessCoop Installation Instructions
+        
+        ## Automatic Installation (Recommended)
+        1. Extract this entire folder to your Hollow Knight Silksong game directory
+        2. The game directory should contain HollowKnight.exe
+        3. Run the game - BepInEx will initialize automatically
+        
+        ## Manual Installation
+        1. Copy all files from this package to your game directory
+        2. Make sure the folder structure is preserved:
+           - BepInEx/ folder should be in the game root
+           - SilklessCoop.dll should be in BepInEx/plugins/
+        
+        ## Usage
+        - Press F5 in-game to toggle multiplayer
+        - Or use the "Enable Multiplayer" button in the main menu
+        - For Steam P2P: Just enable multiplayer and invite friends through Steam
+        - For standalone: Configure server settings in the mod config
+        
+        ## Troubleshooting
+        - Make sure all players have the same mod version
+        - If connection fails, try disabling and re-enabling multiplayer
+        - Check BepInEx/LogOutput.log for error messages
+        "@ | Out-File -FilePath "SilklessCoopPackage\INSTALLATION.txt" -Encoding UTF8
+        
+    - name: Create ZIP package
+      run: |
+        Compress-Archive -Path "SilklessCoopPackage\*" -DestinationPath "SilklessCoop-Release.zip" -Force
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: SilklessCoop-Release
+        path: SilklessCoop-Release.zip
+        retention-days: 30
+        
+    - name: Upload to release (if release event)
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./SilklessCoop-Release.zip
+        asset_name: SilklessCoop-Release.zip
+        asset_content_type: application/zip
