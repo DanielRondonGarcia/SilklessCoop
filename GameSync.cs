@@ -67,6 +67,9 @@ namespace SilklessCoop
         private Dictionary<string, GameObject> _playerCompasses = new Dictionary<string, GameObject>();
         private Dictionary<string, tk2dSprite> _playerCompassSprites = new Dictionary<string, tk2dSprite>();
 
+        // progress sync
+        private GameProgressSync _progressSync = null;
+
         private bool _setup = false;
 
         private void Update()
@@ -106,6 +109,22 @@ namespace SilklessCoop
             if (!_setup)
             {
                 _setup = true;
+                
+                // Inicializar sistema de sincronización de progreso si está habilitado
+                if (_progressSync == null && Config.SyncGameProgress)
+                {
+                    _progressSync = gameObject.AddComponent<GameProgressSync>();
+                    _progressSync.Logger = Logger;
+                    _progressSync.Config = Config;
+                    
+                    // Agregar componente de prueba si el debug está habilitado
+                    if (Config.PrintDebugOutput)
+                    {
+                        var testSync = gameObject.AddComponent<TestProgressSync>();
+                        testSync.Logger = Logger;
+                        testSync.Config = Config;
+                    }
+                }
 
                 Logger.LogInfo("GameObject setup complete.");
             }
@@ -160,6 +179,16 @@ namespace SilklessCoop
             string compassData = Config.SyncCompasses ? $":{compassActive}:{compassX}:{compassY}" : "";
             string data = $"{baseData}{compassData}";
 
+            // Verificar si hay datos de progreso pendientes para enviar
+            if (_progressSync != null && Config.SyncGameProgress)
+            {
+                string progressData = _progressSync.GetPendingProgressData();
+                if (!string.IsNullOrEmpty(progressData))
+                {
+                    return progressData; // Enviar datos de progreso en lugar de datos de posición
+                }
+            }
+
             return data;
         }
 
@@ -170,6 +199,17 @@ namespace SilklessCoop
                 if (!_setup) return;
 
                 if (Config.PrintDebugOutput) Logger.LogInfo($"Applying update {data}...");
+
+                // Verificar si es un mensaje de progreso del juego
+                if (data.Contains("PROGRESS::"))
+                {
+                    string[] progressParts = data.Split(new string[] { "PROGRESS::" }, StringSplitOptions.None);
+                    if (progressParts.Length > 1 && _progressSync != null)
+                    {
+                        _progressSync.ApplyReceivedProgress(progressParts[1]);
+                        return;
+                    }
+                }
 
                 UpdateUI();
 
@@ -512,6 +552,12 @@ namespace SilklessCoop
             foreach (GameObject g in _playerCompasses.Values)
                 if (g != null) Destroy(g);
             _playerCompasses.Clear();
+            
+            // Resetear sistema de sincronización de progreso
+            if (_progressSync != null)
+            {
+                _progressSync.Reset();
+            }
         }
     }
 }

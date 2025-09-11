@@ -24,5 +24,6 @@ namespace SilklessCoop
         public float InactiveCompassOpacity;
         
         public bool ShowPlayerColorPins;
+        public bool SyncGameProgress;
     };
 }

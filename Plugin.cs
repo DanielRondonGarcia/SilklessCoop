@@ -14,6 +14,7 @@ public class Plugin : BaseUnityPlugin
         config.ConnectionType = Config.Bind<ConnectionType>("General", "Connection Type", ConnectionType.STEAM_P2P, "Choose echoserver for standalone or steam_p2p for Steam.").Value;
         config.TickRate = Config.Bind<int>("General", "Tick Rate", 20, "Messages per second sent to the server.").Value;
         config.SyncCompasses = Config.Bind<bool>("General", "Sync Compasses", true, "Enables seeing other players compasses on your map.").Value;
+        config.SyncGameProgress = Config.Bind<bool>("General", "Sync Game Progress", true, "Enables full cooperative game progress synchronization (items, doors, quests, etc.).").Value;
 
         config.PrintDebugOutput = Config.Bind<bool>("General", "Print Debug Output", false, "Enables advanced logging to help find bugs.").Value;
 
