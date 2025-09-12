@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
@@ -7,6 +7,8 @@
         <Version>2.2.2</Version>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
         <RestoreAdditionalProjectSources>
             https://api.nuget.org/v3/index.json;
             https://nuget.bepinex.dev/v3/index.json;
@@ -14,6 +16,29 @@
         </RestoreAdditionalProjectSources>
         <RootNamespace>SilklessCoop</RootNamespace>
     </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Exclude problematic decompiled files -->
+        <Compile Remove="SilksongMultiplayer\1Class1.cs" />
+        <Compile Remove="SilksongMultiplayer\2Class1.cs" />
+        <Compile Remove="SilksongMultiplayer\Class1.cs" />
+        <Compile Remove="SilksongMultiplayer\AttackAnimTimeCounter.cs" />
+        <Compile Remove="SilksongMultiplayer\CreateLobbyButton.cs" />
+        <Compile Remove="SilksongMultiplayer\InviteLobbyButton.cs" />
+        <Compile Remove="SilksongMultiplayer\HeroAnimatorHook.cs" />
+        <Compile Remove="SilksongMultiplayer\Dummy.cs" />
+        <Compile Remove="SilksongMultiplayer\ToolCrestType.cs" />
+        <Compile Remove="SilksongMultiplayer\PlayerAvatar.cs" />
+        <Compile Remove="SilksongMultiplayer\NetworkDataReceiver.cs" />
+        <Compile Remove="SilksongMultiplayer\PlayerNetworkSync.cs" />
+        <Compile Remove="SilksongMultiplayer\DDOLFinder.cs" />
+        <Compile Remove="SilksongMultiplayer\SilksongMultiplayerAPI.cs" />
+        <Compile Remove="SilksongMultiplayer\NetworkDataSender.cs" />
+        <Compile Remove="SilksongMultiplayer\OptimizedNetworkDataSender.cs" />
+        <Compile Remove="SilksongMultiplayer\OptimizedPlayerAvatar.cs" />
+        <Compile Remove="SilksongMultiplayer\OptimizedPlayerNetworkSync.cs" />
+        <Compile Remove="SilksongMultiplayer\RoomManager.cs" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />

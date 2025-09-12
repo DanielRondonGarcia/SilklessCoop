@@ -1,7 +1,8 @@
-﻿using Steamworks;
+using Steamworks;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
 namespace SilklessCoop
 {
@@ -50,6 +51,10 @@ namespace SilklessCoop
                 _ownId = SteamUser.GetSteamID();
                 _hostId = CSteamID.Nil;
                 _connected = new HashSet<CSteamID>();
+
+                // Establecer como HOST por defecto (el primero en crear sesión)
+                Role = GameRole.HOST;
+                Logger.LogInfo($"Initialized as HOST (Steam ID: {_ownId})");
 
                 SteamFriends.SetRichPresence("connect", _ownId.ToString());
 
@@ -126,6 +131,8 @@ namespace SilklessCoop
             {
                 if (Config.PrintDebugOutput) Logger.LogInfo("LobbyRole set to CLIENT.");
                 _role = ELobbyRole.CLIENT;
+                Role = GameRole.CLIENT; // Asignar rol de arquitectura
+                Logger.LogInfo($"GameRole set to CLIENT - will receive world state from HOST {request.m_steamIDFriend}");
             }
 
             Logger.LogInfo($"Successfully connected to {request.m_steamIDFriend}.");
@@ -155,6 +162,8 @@ namespace SilklessCoop
             {
                 if (Config.PrintDebugOutput) Logger.LogInfo("LobbyRole set to SERVER.");
                 _role = ELobbyRole.SERVER;
+                Role = GameRole.HOST; // Asignar rol de arquitectura
+                Logger.LogInfo($"GameRole confirmed as HOST - will control world state for {_connected.Count} client(s)");
             }
 
             Logger.LogInfo($"Successfully received connection from {request.m_steamIDRemote}.");
@@ -177,6 +186,8 @@ namespace SilklessCoop
             {
                 if (Config.PrintDebugOutput) Logger.LogInfo("LobbyRole set to DEFAULT.");
                 _role = ELobbyRole.DEFAULT;
+                Role = GameRole.HOST; // Por defecto HOST cuando no hay conexiones
+                if (Config.PrintDebugOutput) Logger.LogInfo("GameRole reset to HOST (default).");
                 SteamFriends.SetRichPresence("connect", _ownId.ToString());
             }
 
@@ -204,13 +215,14 @@ namespace SilklessCoop
                     {
                         string data = Encoding.UTF8.GetString(buffer);
 
-                        string[] parts = data.Split("::");
+                        // Preserve full content even if it contains additional "::" (e.g., "COMBAT::...")
+                        string[] parts = data.Split(new string[] { "::" }, StringSplitOptions.None);
 
                         string metadata = $"{_connected.Count}";
+                        string content = parts.Length > 2 ? string.Join("::", parts.Skip(2)) : string.Empty;
+                        string rebuilt = parts.Length > 0 ? $"{parts[0]}::{metadata}::{content}" : data;
 
-                        data = $"{parts[0]}::{metadata}::{parts[2]}";
-
-                        _sync.ApplyUpdate(data);
+                        _sync.ApplyUpdate(rebuilt);
 
                         if (_role == ELobbyRole.SERVER)
                         {

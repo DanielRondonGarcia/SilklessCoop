@@ -11,12 +11,13 @@ public class Plugin : BaseUnityPlugin
         // bind configs
         ModConfig config = new ModConfig();
         config.MultiplayerToggleKey = Config.Bind<KeyCode>("General", "Toggle Key", KeyCode.F5, "Key used to toggle multiplayer.").Value;
+        config.CharacterSwitchKey = Config.Bind<KeyCode>("General", "Character Switch Key", KeyCode.F6, "Key used to switch between characters.").Value;
         config.ConnectionType = Config.Bind<ConnectionType>("General", "Connection Type", ConnectionType.STEAM_P2P, "Choose echoserver for standalone or steam_p2p for Steam.").Value;
         config.TickRate = Config.Bind<int>("General", "Tick Rate", 20, "Messages per second sent to the server.").Value;
         config.SyncCompasses = Config.Bind<bool>("General", "Sync Compasses", true, "Enables seeing other players compasses on your map.").Value;
         config.SyncGameProgress = Config.Bind<bool>("General", "Sync Game Progress", true, "Enables full cooperative game progress synchronization (items, doors, quests, etc.).").Value;
 
-        config.PrintDebugOutput = Config.Bind<bool>("General", "Print Debug Output", false, "Enables advanced logging to help find bugs.").Value;
+        config.PrintDebugOutput = Config.Bind<bool>("General", "Print Debug Output", true, "Enables advanced logging to help find bugs.").Value;
 
         config.EchoServerIP = Config.Bind<string>("Standalone", "Server IP Address", "127.0.0.1", "IP Address of the standalone server.").Value;
         config.EchoServerPort = Config.Bind<int>("Standalone", "Server Port", 45565, "Port of the standalone server.").Value;
@@ -39,6 +40,10 @@ public class Plugin : BaseUnityPlugin
         UIAdder ua = persistentObject.AddComponent<UIAdder>();
         ua.Logger = Logger;
         ua.Config = config;
+
+        // Initialize custom sprite loader for Knight sprites
+        CustomSpriteLoader spriteLoader = persistentObject.AddComponent<CustomSpriteLoader>();
+        spriteLoader.LoadKnightSprites();
 
         Connector c = null;
         if (config.ConnectionType == ConnectionType.ECHOSERVER) c = persistentObject.AddComponent<StandaloneConnector>();

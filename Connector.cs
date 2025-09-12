@@ -1,8 +1,14 @@
-﻿using BepInEx.Logging;
+using BepInEx.Logging;
 using UnityEngine;
 
 namespace SilklessCoop
 {
+    public enum GameRole
+    {
+        HOST,    // Controla el mundo
+        CLIENT   // Solo recibe actualizaciones
+    }
+    
     internal abstract class Connector : MonoBehaviour
     {
         public ManualLogSource Logger;
@@ -10,6 +16,11 @@ namespace SilklessCoop
 
         public bool Initialized;
         public bool Active;
+        
+        // Arquitectura Host-Cliente
+        public GameRole Role { get; protected set; } = GameRole.HOST; // Por defecto HOST
+        public bool IsHost => Role == GameRole.HOST;
+        public bool IsClient => Role == GameRole.CLIENT;
 
         protected GameSync _sync;
 

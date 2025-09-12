@@ -11,6 +11,7 @@ namespace SilklessCoop
     internal class ModConfig
     {
         public KeyCode MultiplayerToggleKey;
+        public KeyCode CharacterSwitchKey;
         public ConnectionType ConnectionType;
         public int TickRate;
         public bool SyncCompasses;

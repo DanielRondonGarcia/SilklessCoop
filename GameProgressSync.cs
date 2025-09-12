@@ -2,6 +2,7 @@ using BepInEx.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -643,6 +644,148 @@ namespace SilklessCoop
                 Logger.LogInfo("GameProgressSync reset");
         }
 
+        /// <summary>
+        /// Registra un evento del mundo (puerta abierta, interruptor activado, etc.)
+        /// </summary>
+        public void RegisterWorldEvent(string eventType, string objectId, bool state)
+        {
+            try
+            {
+                string eventKey = $"{eventType}_{objectId}";
+                
+                // Verificar si el evento ya está registrado con el mismo estado
+                if (_lastSyncedProgress.ContainsKey(eventKey) && 
+                    _lastSyncedProgress[eventKey].Equals(state))
+                {
+                    return; // No hay cambios
+                }
+                
+                // Registrar el evento en el progreso
+                var currentProgress = GetCurrentGameProgress();
+                currentProgress[eventKey] = state;
+                
+                // Marcar para sincronización
+                if (HasProgressChanged(currentProgress))
+                {
+                    string progressData = SerializeProgress(currentProgress);
+                    _pendingProgressData = $"PROGRESS::{progressData}";
+                    _lastSyncedProgress = new Dictionary<string, object>(currentProgress);
+                    
+                    if (Config.PrintDebugOutput)
+                        Logger.LogInfo($"Registered world event: {eventType} for {objectId} = {state}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error registering world event {eventType}_{objectId}: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Aplica eventos del mundo recibidos de otros jugadores
+        /// </summary>
+        public void ApplyWorldEvents(Dictionary<string, object> worldEvents)
+        {
+            try
+            {
+                foreach (var worldEvent in worldEvents)
+                {
+                    if (worldEvent.Key.Contains("_"))
+                    {
+                        var parts = worldEvent.Key.Split('_');
+                        if (parts.Length >= 2)
+                        {
+                            string eventType = parts[0];
+                            string objectId = string.Join("_", parts.Skip(1));
+                            bool state = Convert.ToBoolean(worldEvent.Value);
+                            
+                            ApplyWorldEventToGame(eventType, objectId, state);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error applying world events: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Aplica un evento del mundo específico al juego
+        /// </summary>
+        private void ApplyWorldEventToGame(string eventType, string objectId, bool state)
+        {
+            try
+            {
+                // Buscar el objeto en la escena
+                var targetObjects = FindObjectsOfType<GameObject>()
+                    .Where(go => $"{go.name}_{go.GetInstanceID()}" == objectId)
+                    .ToList();
+                
+                foreach (var obj in targetObjects)
+                {
+                    if (obj == null) continue;
+                    
+                    switch (eventType.ToLower())
+                    {
+                        case "door":
+                        case "openeddoor":
+                            // Aplicar estado de puerta (abierta/cerrada)
+                            if (state && !obj.activeInHierarchy)
+                            {
+                                obj.SetActive(true);
+                                if (Config.PrintDebugOutput)
+                                    Logger.LogInfo($"Opened door: {objectId}");
+                            }
+                            else if (!state && obj.activeInHierarchy)
+                            {
+                                obj.SetActive(false);
+                                if (Config.PrintDebugOutput)
+                                    Logger.LogInfo($"Closed door: {objectId}");
+                            }
+                            break;
+                            
+                        case "switch":
+                        case "lever":
+                            // Aplicar estado de interruptor/palanca
+                            var switchComponent = obj.GetComponent<Animator>();
+                            if (switchComponent != null)
+                            {
+                                switchComponent.SetBool("activated", state);
+                                if (Config.PrintDebugOutput)
+                                    Logger.LogInfo($"Set switch {objectId} to {state}");
+                            }
+                            break;
+                            
+                        case "collectible":
+                        case "collecteditem":
+                            // Aplicar estado de objeto recolectable
+                            if (state && obj.activeInHierarchy)
+                            {
+                                obj.SetActive(false);
+                                if (Config.PrintDebugOutput)
+                                    Logger.LogInfo($"Collected item: {objectId}");
+                            }
+                            break;
+                            
+                        case "destructible":
+                            // Aplicar estado de objeto destructible
+                            if (state && obj.activeInHierarchy)
+                            {
+                                obj.SetActive(false);
+                                if (Config.PrintDebugOutput)
+                                    Logger.LogInfo($"Destroyed object: {objectId}");
+                            }
+                            break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error applying world event {eventType}_{objectId}: {ex.Message}");
+            }
+        }
+        
         /// <summary>
         /// Obtiene datos de progreso pendientes para envío
         /// </summary>

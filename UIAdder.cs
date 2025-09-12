@@ -13,6 +13,7 @@ namespace SilklessCoop
         public ModConfig Config;
 
         private Connector _connector;
+        private CombatSync _combatSync;
 
         private GameObject _oldButton;
         private GameObject _mainMenu;
@@ -38,10 +39,28 @@ namespace SilklessCoop
         private void Start()
         {
             _connector = GetComponent<Connector>();
+            // Buscar CombatSync en cualquier GameObject activo
+            _combatSync = FindFirstObjectByType<CombatSync>();
+            
+            if (Config.PrintDebugOutput)
+            {
+                if (_combatSync != null)
+                    Logger.LogInfo("CombatSync found successfully in Start()");
+                else
+                    Logger.LogWarning("CombatSync not found in Start()");
+            }
         }
 
         private void Update()
         {
+            // Intentar encontrar CombatSync si aún no se ha encontrado
+            if (_combatSync == null)
+            {
+                _combatSync = FindFirstObjectByType<CombatSync>();
+                if (Config.PrintDebugOutput && _combatSync != null)
+                    Logger.LogInfo("CombatSync found in Update()");
+            }
+            
             if (_connector.Initialized)
             {
                 if (Input.GetKeyDown(Config.MultiplayerToggleKey))
@@ -51,6 +70,43 @@ namespace SilklessCoop
                     
                     // Mostrar texto temporal al cambiar estado
                     ShowStatusText(_connector.Active ? "Enabled" : "Disabled");
+                }
+                
+                // Manejar cambio de personaje con F6
+                if (Input.GetKeyDown(Config.CharacterSwitchKey))
+                {
+                    if (Config.PrintDebugOutput)
+                    {
+                        Logger.LogInfo($"F6 key detected! CharacterSwitchKey: {Config.CharacterSwitchKey}");
+                        
+                        // Debug: Listar todos los objetos Hero/Knight/Hornet
+                        var allObjects = FindObjectsOfType<GameObject>();
+                        var heroObjects = allObjects.Where(obj => 
+                            obj.name.Contains("Hero") || 
+                            obj.name.Contains("Knight") || 
+                            obj.name.Contains("Hornet")
+                        ).ToArray();
+                        
+                        Logger.LogInfo($"Found {heroObjects.Length} Hero/Knight/Hornet objects:");
+                        foreach (var obj in heroObjects)
+                        {
+                            var sprite = obj.GetComponent<tk2dSprite>();
+                            Logger.LogInfo($"  - {obj.name} (Active: {obj.activeInHierarchy}, tk2dSprite: {sprite != null})");
+                        }
+                    }
+                        
+                    if (_combatSync != null)
+                    {
+                        if (Config.PrintDebugOutput)
+                            Logger.LogInfo("Calling SwitchCharacter method");
+                        _combatSync.SwitchCharacter();
+                        ShowStatusText("Character Switched");
+                    }
+                    else
+                    {
+                        if (Config.PrintDebugOutput)
+                            Logger.LogWarning("_combatSync is null, cannot switch character");
+                    }
                 }
             }
 

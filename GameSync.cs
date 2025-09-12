@@ -52,6 +52,12 @@ namespace SilklessCoop
         // pin de color para jugador local (solo para debug)
         private GameObject _localPlayerColorPin = null;
         private Color _localPlayerColor = new Color(1.0f, 1.0f, 1.0f, 0.9f); // Blanco para el jugador local
+        
+        // Arquitectura Host-Cliente: datos pendientes para envío
+        private string _pendingCustomUpdate = null;
+        
+        // Sistema optimizado de nombres de usuario
+        private SilksongMultiplayer.OptimizedUsernameSync _usernameSync = null;
 
         // player count
         private GameObject _pauseMenu = null;
@@ -81,6 +87,9 @@ namespace SilklessCoop
         
         // audio sync
         private AudioSync _audioSync = null;
+        
+        // connector
+        private Connector _connector = null;
 
         private bool _setup = false;
 
@@ -121,6 +130,12 @@ namespace SilklessCoop
             if (!_setup)
             {
                 _setup = true;
+                
+                // Inicializar conector
+                if (_connector == null)
+                {
+                    _connector = GetComponent<Connector>();
+                }
                 
                 // Inicializar sistema de sincronización de progreso si está habilitado
                 if (_progressSync == null && Config.SyncGameProgress)
@@ -166,6 +181,15 @@ namespace SilklessCoop
                         Logger.LogInfo("InventorySync component initialized");
                 }
                 
+                // Inicializar sistema optimizado de nombres de usuario
+                if (_usernameSync == null)
+                {
+                    _usernameSync = _hornetObject.AddComponent<SilksongMultiplayer.OptimizedUsernameSync>();
+                    
+                    if (Config.PrintDebugOutput)
+                        Logger.LogInfo("OptimizedUsernameSync component initialized");
+                }
+                
                 // TODO: Reactivar sistema de audio cuando sea necesario
                 // Inicializar sistema de audio - TEMPORALMENTE DESACTIVADO
                 /*
@@ -179,7 +203,7 @@ namespace SilklessCoop
                 }
                 */
 
-                Logger.LogInfo("GameObject setup complete.");
+                Logger.LogInfo("GameObject setup complete with optimized username sync.");
             }
             
             // Manejar pin de color del jugador local cuando PrintDebugOutput está activado
@@ -207,6 +231,14 @@ namespace SilklessCoop
         public string GetUpdateContent()
         {
             if (!_setup) return null;
+            
+            // Arquitectura Host-Cliente: Priorizar datos personalizados
+            if (!string.IsNullOrEmpty(_pendingCustomUpdate))
+            {
+                string customData = _pendingCustomUpdate;
+                _pendingCustomUpdate = null; // Limpiar después de usar
+                return customData;
+            }
 
             string scene = SceneManager.GetActiveScene().name;
             float posX = _hornetObject.transform.position.x;
@@ -344,6 +376,28 @@ namespace SilklessCoop
                     if (audioParts.Length > 1 && _audioSync != null)
                     {
                         _audioSync.ProcessRemoteAudioData(audioParts[1]);
+                        return;
+                    }
+                }
+                
+                // Arquitectura Host-Cliente: Manejar estado del mundo
+                if (data.Contains("WORLD_STATE::"))
+                {
+                    string[] worldStateParts = data.Split(new string[] { "WORLD_STATE::" }, StringSplitOptions.None);
+                    if (worldStateParts.Length > 1 && _combatSync != null)
+                    {
+                        _combatSync.ApplyWorldState(worldStateParts[1]);
+                        return;
+                    }
+                }
+                
+                // Arquitectura Host-Cliente: Manejar input del jugador
+                if (data.Contains("PLAYER_INPUT::"))
+                {
+                    string[] playerInputParts = data.Split(new string[] { "PLAYER_INPUT::" }, StringSplitOptions.None);
+                    if (playerInputParts.Length > 1 && _combatSync != null)
+                    {
+                        _combatSync.ProcessPlayerInput(playerInputParts[1]);
                         return;
                     }
                 }
@@ -709,6 +763,23 @@ namespace SilklessCoop
             if (_inventorySync != null)
             {
                 _inventorySync.Reset();
+            }
+        }
+        
+        /// <summary>
+        /// Envía una actualización a través del conector (para arquitectura Host-Cliente)
+        /// </summary>
+        /// <param name="data">Datos a enviar</param>
+        public void SendUpdate(string data)
+        {
+            if (_connector != null && _connector.Active)
+            {
+                // Usar el mecanismo de envío del conector
+                // Temporalmente almacenar los datos para que Tick() los envíe
+                _pendingCustomUpdate = data;
+                
+                if (Config.PrintDebugOutput)
+                    Logger.LogInfo($"Queued update for sending: {data.Substring(0, Math.Min(100, data.Length))}...");
             }
         }
     }
