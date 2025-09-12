@@ -69,6 +69,18 @@ namespace SilklessCoop
 
         // progress sync
         private GameProgressSync _progressSync = null;
+        
+        // combat sync
+        private CombatSync _combatSync = null;
+        
+        // time sync
+        private TimeSync _timeSync = null;
+        
+        // inventory sync
+        private InventorySync _inventorySync = null;
+        
+        // audio sync
+        private AudioSync _audioSync = null;
 
         private bool _setup = false;
 
@@ -125,6 +137,47 @@ namespace SilklessCoop
                         testSync.Config = Config;
                     }
                 }
+                
+                // Inicializar sistema de sincronización de combate
+                if (_combatSync == null)
+                {
+                    _combatSync = gameObject.AddComponent<CombatSync>();
+                    _combatSync.Logger = Logger;
+                    _combatSync.Config = Config;
+                }
+                
+                // Inicializar sistema de tiempo
+                if (_timeSync == null)
+                {
+                    _timeSync = gameObject.AddComponent<TimeSync>();
+                    _timeSync.Initialize(Logger, Config);
+                    
+                    if (Config.PrintDebugOutput)
+                        Logger.LogInfo("TimeSync component initialized");
+                }
+                
+                // Inicializar sistema de inventario
+                if (_inventorySync == null)
+                {
+                    _inventorySync = gameObject.AddComponent<InventorySync>();
+                    _inventorySync.Initialize(Logger, Config);
+                    
+                    if (Config.PrintDebugOutput)
+                        Logger.LogInfo("InventorySync component initialized");
+                }
+                
+                // TODO: Reactivar sistema de audio cuando sea necesario
+                // Inicializar sistema de audio - TEMPORALMENTE DESACTIVADO
+                /*
+                if (_audioSync == null)
+                {
+                    _audioSync = gameObject.AddComponent<AudioSync>();
+                    _audioSync.Initialize(Logger, Config);
+                    
+                    if (Config.PrintDebugOutput)
+                        Logger.LogInfo("AudioSync component initialized");
+                }
+                */
 
                 Logger.LogInfo("GameObject setup complete.");
             }
@@ -188,6 +241,46 @@ namespace SilklessCoop
                     return progressData; // Enviar datos de progreso en lugar de datos de posición
                 }
             }
+            
+            // Verificar si hay datos de combate pendientes para enviar
+            if (_combatSync != null)
+            {
+                string combatData = _combatSync.GetPendingData();
+                if (!string.IsNullOrEmpty(combatData))
+                {
+                    return combatData; // Enviar datos de combate
+                }
+            }
+            
+            // Verificar si hay datos de tiempo pendientes para enviar
+            if (_timeSync != null)
+            {
+                string timeData = _timeSync.GetPendingData();
+                if (!string.IsNullOrEmpty(timeData))
+                {
+                    return timeData; // Enviar datos de tiempo
+                }
+            }
+            
+            // Verificar si hay datos de inventario pendientes para enviar
+            if (_inventorySync != null)
+            {
+                string inventoryData = _inventorySync.GetPendingData();
+                if (!string.IsNullOrEmpty(inventoryData))
+                {
+                    return inventoryData; // Enviar datos de inventario
+                }
+            }
+            
+            // Verificar si hay datos de audio pendientes para enviar
+            if (_audioSync != null)
+            {
+                string audioData = _audioSync.GetPendingAudioData();
+                if (!string.IsNullOrEmpty(audioData))
+                {
+                    return $"AUDIO::{audioData}"; // Enviar datos de audio
+                }
+            }
 
             return data;
         }
@@ -207,6 +300,50 @@ namespace SilklessCoop
                     if (progressParts.Length > 1 && _progressSync != null)
                     {
                         _progressSync.ApplyReceivedProgress(progressParts[1]);
+                        return;
+                    }
+                }
+                
+                // Verificar si es un mensaje de combate
+                if (data.Contains("COMBAT::"))
+                {
+                    string[] combatParts = data.Split(new string[] { "COMBAT::" }, StringSplitOptions.None);
+                    if (combatParts.Length > 1 && _combatSync != null)
+                    {
+                        _combatSync.ApplyReceivedData(combatParts[1]);
+                        return;
+                    }
+                }
+                
+                // Verificar si es un mensaje de tiempo
+                if (data.Contains("TIME::"))
+                {
+                    string[] timeParts = data.Split(new string[] { "TIME::" }, StringSplitOptions.None);
+                    if (timeParts.Length > 1 && _timeSync != null)
+                    {
+                        _timeSync.ApplyReceivedData(timeParts[1]);
+                        return;
+                    }
+                }
+                
+                // Verificar si es un mensaje de inventario
+                if (data.Contains("INVENTORY::"))
+                {
+                    string[] inventoryParts = data.Split(new string[] { "INVENTORY::" }, StringSplitOptions.None);
+                    if (inventoryParts.Length > 1 && _inventorySync != null)
+                    {
+                        _inventorySync.ApplyReceivedData(inventoryParts[1]);
+                        return;
+                    }
+                }
+                
+                // Verificar si es un mensaje de audio
+                if (data.Contains("AUDIO::"))
+                {
+                    string[] audioParts = data.Split(new string[] { "AUDIO::" }, StringSplitOptions.None);
+                    if (audioParts.Length > 1 && _audioSync != null)
+                    {
+                        _audioSync.ProcessRemoteAudioData(audioParts[1]);
                         return;
                     }
                 }
@@ -557,6 +694,21 @@ namespace SilklessCoop
             if (_progressSync != null)
             {
                 _progressSync.Reset();
+            }
+            
+            if (_combatSync != null)
+            {
+                _combatSync.Reset();
+            }
+            
+            if (_timeSync != null)
+            {
+                _timeSync.Reset();
+            }
+            
+            if (_inventorySync != null)
+            {
+                _inventorySync.Reset();
             }
         }
     }
