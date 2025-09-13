@@ -260,10 +260,12 @@ namespace SilklessCoop.Core
                 {
                     playerObj.transform.position = data.position;
                     
-                    // Actualizar escala para la dirección
-                    var scale = playerObj.transform.localScale;
-                    scale.x = data.facingRight ? Mathf.Abs(scale.x) : -Mathf.Abs(scale.x);
-                    playerObj.transform.localScale = scale;
+                    // Actualizar dirección del sprite sin afectar la escala del objeto
+                    var renderer = playerObj.GetComponent<SpriteRenderer>();
+                    if (renderer != null)
+                    {
+                        renderer.flipX = !data.facingRight;
+                    }
                     
                     // Actualizar transparencia
                     var renderer = playerObj.GetComponent<SpriteRenderer>();
@@ -303,11 +305,23 @@ namespace SilklessCoop.Core
                 Logger.LogInfo($"[DEBUG] GameObject creado en posición {data.position}");
                 
                 // Buscar el sprite renderer del jugador local (puede estar en el objeto o en hijos)
-                var localRenderer = heroController.GetComponent<SpriteRenderer>();
-                if (localRenderer == null)
+        SpriteRenderer localRenderer = null;
+        float largestSpriteSize = 0f;
+
+        var renderers = heroController.GetComponentsInChildren<SpriteRenderer>(true);
+        Logger.LogInfo($"[DEBUG] Found {renderers.Length} SpriteRenderers in children.");
+
+        foreach (var renderer in renderers)
                 {
-                    Logger.LogInfo($"[DEBUG] SpriteRenderer no encontrado en HeroController, buscando en hijos");
-                    localRenderer = heroController.GetComponentInChildren<SpriteRenderer>();
+            if (renderer.sprite != null)
+            {
+                float spriteSize = renderer.sprite.bounds.size.x * renderer.sprite.bounds.size.y;
+                if (spriteSize > largestSpriteSize)
+                {
+                    largestSpriteSize = spriteSize;
+                    localRenderer = renderer;
+                }
+            }
                 }
                 
                 if (localRenderer != null)
