@@ -5,6 +5,7 @@ using UnityEngine;
 using Steamworks;
 using BepInEx.Logging;
 using SilklessCoop.Networking;
+using SilklessCoop.Core;
 
 namespace SilklessCoop.Core
 {
@@ -224,62 +225,37 @@ namespace SilklessCoop.Core
         {
             try
             {
-                // Verificar si estamos en la misma escena
                 var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-                Logger.LogInfo($"[DEBUG] Actualizando objeto remoto {playerID} - Escena actual: {currentScene}, Escena jugador: {data.currentScene}");
-                
-                if (data.currentScene != currentScene)
-                {
-                    Logger.LogInfo($"[DEBUG] Jugador {playerID} está en escena diferente - ocultando objeto");
-                    // Ocultar jugador si está en otra escena
-                    if (remotePlayerObjects.ContainsKey(playerID))
-                    {
-                        remotePlayerObjects[playerID].SetActive(false);
-                    }
-                    return;
-                }
                 
                 GameObject playerObj;
-                if (!remotePlayerObjects.ContainsKey(playerID))
+                if (!remotePlayerObjects.ContainsKey(playerID) || remotePlayerObjects[playerID] == null)
                 {
-                    Logger.LogInfo($"[DEBUG] Creando nuevo objeto para jugador remoto {playerID}");
-                    // Crear nuevo objeto para el jugador remoto
                     playerObj = CreateRemotePlayerObject(playerID, data);
+                    if (playerObj == null) return; // Could not create the object
                     remotePlayerObjects[playerID] = playerObj;
-                    Logger.LogInfo($"[DEBUG] Objeto creado para {playerID}: {(playerObj != null ? "EXITOSO" : "FALLIDO")}");
                 }
                 else
                 {
-                    Logger.LogInfo($"[DEBUG] Actualizando objeto existente para {playerID}");
                     playerObj = remotePlayerObjects[playerID];
-                    playerObj.SetActive(true);
                 }
-                
-                // Actualizar posición y estado
-                if (playerObj != null)
+
+                var avatar = playerObj.GetComponent<PlayerAvatar>();
+                if (avatar != null)
                 {
-                    playerObj.transform.position = data.position;
-                    
-                    // Actualizar dirección del sprite sin afectar la escala del objeto
-                    var renderer = playerObj.GetComponent<SpriteRenderer>();
-                    if (renderer != null)
+                    // Show/hide based on scene
+                    if (data.currentScene != currentScene)
                     {
-                        renderer.flipX = !data.facingRight;
+                        avatar.SetVisible(false);
+                        return;
                     }
-                    
-                    // Actualizar transparencia
-                    var renderer = playerObj.GetComponent<SpriteRenderer>();
-                    if (renderer != null && SilklessCoopPlugin.PlayerOpacity != null)
-                    {
-                        var color = renderer.color;
-                        color.a = SilklessCoopPlugin.PlayerOpacity.Value;
-                        renderer.color = color;
-                    }
+
+                    avatar.SetVisible(true);
+                    avatar.UpdateState(data.position, data.facingRight);
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error al actualizar objeto del jugador remoto: {ex.Message}");
+                Logger.LogError($"Error updating remote player object: {ex.Message}");
             }
         }
         
@@ -287,161 +263,49 @@ namespace SilklessCoop.Core
         {
             try
             {
-                Logger.LogInfo($"[DEBUG] Iniciando creación de objeto remoto para {playerID}");
-                
-                // Buscar el objeto del jugador local como referencia
                 var heroController = GameObject.FindFirstObjectByType<HeroController>();
                 if (heroController == null)
                 {
-                    Logger.LogWarning($"[DEBUG] No se encontró HeroController - creando objeto simple para {playerID}");
-                    return CreateSimplePlayerObject(playerID, data);
+                    Logger.LogWarning($"[DEBUG] HeroController not found, cannot create remote player object.");
+                    return null;
+                }
+
+                // Find the local player's tk2dSprite component
+                var localSprite = heroController.GetComponentInChildren<tk2dSprite>(true);
+                if (localSprite == null)
+                {
+                    Logger.LogWarning($"[DEBUG] tk2dSprite not found on local player, cannot create remote player object.");
+                    return null;
                 }
                 
-                Logger.LogInfo($"[DEBUG] HeroController encontrado - creando objeto completo para {playerID}");
-                
-                // Crear una copia simplificada del jugador
                 var playerObj = new GameObject($"RemotePlayer_{playerID}");
                 playerObj.transform.position = data.position;
-                Logger.LogInfo($"[DEBUG] GameObject creado en posición {data.position}");
-                
-                // Buscar el sprite renderer del jugador local (puede estar en el objeto o en hijos)
-        SpriteRenderer localRenderer = null;
-        float largestSpriteSize = 0f;
 
-        var renderers = heroController.GetComponentsInChildren<SpriteRenderer>(true);
-        Logger.LogInfo($"[DEBUG] Found {renderers.Length} SpriteRenderers in children.");
+                // Add and initialize the PlayerAvatar component
+                var avatar = playerObj.AddComponent<PlayerAvatar>();
+                avatar.Initialize(playerID);
 
-        foreach (var renderer in renderers)
+                // Copy the sprite from the local player
+                var remoteSprite = avatar.GetSprite();
+                if (remoteSprite != null)
                 {
-            if (renderer.sprite != null)
-            {
-                float spriteSize = renderer.sprite.bounds.size.x * renderer.sprite.bounds.size.y;
-                if (spriteSize > largestSpriteSize)
-                {
-                    largestSpriteSize = spriteSize;
-                    localRenderer = renderer;
-                }
-            }
-                }
-                
-                if (localRenderer != null)
-                {
-                    Logger.LogInfo($"[DEBUG] SpriteRenderer encontrado - Sprite: {localRenderer.sprite?.name}, Layer: {localRenderer.sortingLayerName}");
-                    var renderer = playerObj.AddComponent<SpriteRenderer>();
-                    renderer.sprite = localRenderer.sprite;
-                    renderer.color = data.playerColor;
-                    renderer.sortingLayerName = localRenderer.sortingLayerName;
-                    renderer.sortingOrder = localRenderer.sortingOrder - 1; // Detrás del jugador local
-                    
-                    // Asegurar que el sprite sea visible
-                    renderer.enabled = true;
-                    
-                    Logger.LogInfo($"[DEBUG] SpriteRenderer configurado - Color: {data.playerColor}, Sprite: {localRenderer.sprite?.name}, Enabled: {renderer.enabled}");
-                }
-                else
-                {
-                    Logger.LogWarning($"[DEBUG] No se encontró SpriteRenderer en HeroController ni en sus hijos - creando sprite por defecto");
-                    
-                    // Crear un sprite simple como fallback
-                    var renderer = playerObj.AddComponent<SpriteRenderer>();
-                    
-                    // Crear un sprite simple (cuadrado blanco)
-                    var texture = new Texture2D(32, 32);
-                    for (int x = 0; x < 32; x++)
+                    remoteSprite.CopyFrom(localSprite);
+                    var color = remoteSprite.color;
+                    if (SilklessCoopPlugin.PlayerOpacity != null)
                     {
-                        for (int y = 0; y < 32; y++)
-                        {
-                            texture.SetPixel(x, y, Color.white);
-                        }
+                        color.a = SilklessCoopPlugin.PlayerOpacity.Value;
                     }
-                    texture.Apply();
-                    
-                    var sprite = Sprite.Create(texture, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f));
-                    renderer.sprite = sprite;
-                    renderer.color = data.playerColor;
-                    renderer.sortingOrder = 100; // Asegurar que sea visible
-                    
-                    Logger.LogInfo($"[DEBUG] Sprite por defecto creado - Color: {data.playerColor}");
+                    remoteSprite.color = color;
+                    remoteSprite.Build();
                 }
-                
-                // Agregar indicador de color si está habilitado
-                if (SilklessCoopPlugin.ShowPlayerColorPins?.Value == true)
-                {
-                    Logger.LogInfo($"[DEBUG] Creando pin de color para {playerID}");
-                    CreatePlayerColorPin(playerObj, data.playerColor);
-                }
-                
-                Logger.LogInfo($"[DEBUG] Objeto de jugador remoto creado exitosamente para {playerID}");
+
+                Logger.LogInfo($"[DEBUG] Remote player object created successfully for {playerID}");
                 return playerObj;
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error al crear objeto de jugador remoto: {ex.Message}");
-                return CreateSimplePlayerObject(playerID, data);
-            }
-        }
-        
-        private static GameObject CreateSimplePlayerObject(CSteamID playerID, PlayerData data)
-        {
-            Logger.LogInfo($"[DEBUG] Creando objeto simple para {playerID}");
-            
-            var playerObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            playerObj.name = $"RemotePlayer_{playerID}";
-            playerObj.transform.position = data.position;
-            playerObj.transform.localScale = new Vector3(0.8f, 1.5f, 0.8f); // Más grande y visible
-            
-            var renderer = playerObj.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                // Crear un material más brillante
-                var material = new Material(Shader.Find("Sprites/Default"));
-                material.color = data.playerColor;
-                renderer.material = material;
-                renderer.sortingOrder = 100; // Asegurar que sea visible
-                
-                Logger.LogInfo($"[DEBUG] Material configurado - Color: {data.playerColor}");
-            }
-            
-            // Remover collider para evitar interferencias
-            var collider = playerObj.GetComponent<Collider>();
-            if (collider != null)
-            {
-                UnityEngine.Object.Destroy(collider);
-            }
-            
-            Logger.LogInfo($"[DEBUG] Objeto simple creado exitosamente en posición {data.position}");
-            return playerObj;
-        }
-        
-        private static void CreatePlayerColorPin(GameObject playerObj, Color color)
-        {
-            try
-            {
-                var pinObj = new GameObject("ColorPin");
-                pinObj.transform.SetParent(playerObj.transform);
-                pinObj.transform.localPosition = new Vector3(0, 2f, 0); // Encima del jugador
-                
-                var renderer = pinObj.AddComponent<SpriteRenderer>();
-                
-                // Crear un sprite simple para el pin
-                var texture = new Texture2D(16, 16);
-                for (int x = 0; x < 16; x++)
-                {
-                    for (int y = 0; y < 16; y++)
-                    {
-                        var distance = Vector2.Distance(new Vector2(x, y), new Vector2(8, 8));
-                        texture.SetPixel(x, y, distance <= 6 ? color : Color.clear);
-                    }
-                }
-                texture.Apply();
-                
-                var sprite = Sprite.Create(texture, new Rect(0, 0, 16, 16), new Vector2(0.5f, 0.5f));
-                renderer.sprite = sprite;
-                renderer.sortingOrder = 100; // Encima de todo
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"Error al crear pin de color: {ex.Message}");
+                Logger.LogError($"Error creating remote player object: {ex.Message}");
+                return null;
             }
         }
         
